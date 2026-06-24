@@ -174,10 +174,10 @@ reference file for the chosen pattern — don't read the others.
 
 | Pattern | When to use | Reference file |
 |---|---|---|
-| ReAct + deterministic verifier | Most loops — observe, act, check | `references/patterns/react.md` |
-| Parallel worktree | Multiple independent work items per run | `references/patterns/worktree.md` |
-| Event-driven | Trigger is a webhook or filesystem event, not a schedule | `references/patterns/event-driven.md` |
-| Run-until-done | No schedule; loop fires until goal predicate holds | `references/patterns/run-until-done.md` |
+| **ReAct + deterministic verifier** (DEFAULT) | One workstream, "done" is a program-checkable predicate | `references/pattern-react-deterministic-verifier.md` |
+| Evaluator–optimizer | Criteria need judgement, not just a script | `references/pattern-evaluator-optimizer.md` |
+| Orchestrator–workers | Work genuinely parallelizes into independent subtasks | `references/pattern-orchestrator-workers.md` |
+| Ralph | Want a crude baseline / teaching loop | `references/pattern-ralph.md` |
 
 State the chosen pattern and one-line rationale before moving to Phase 4.
 Flag: verify the host's scheduler and dispatch mechanics against
@@ -214,18 +214,21 @@ These files do not change at runtime. Install them to
 `<host-skills-dir>/<loop-name>/` using the templates in `templates/`:
 
 1. `SKILL.md` — the loop's core skill (goal, action, discovery, call to
-   verifier). Read-only each run. Generated from `templates/loop-skill.md`.
+   verifier). Read-only each run. Generated from `templates/loop-SKILL.md.tmpl`.
 2. `verifier` — the deterministic checker, adapted from
-   `scripts/verifier_template.sh`. Binary exit code: 0 = passes, 1 = fails.
+   `scripts/verifier_template.sh`. Binary exit code: 0 = condition holds; for
+   the goal predicate that means "stop the loop"; for a per-iteration check it
+   means "this attempt passed". 1 = condition does not hold (iterate / retry).
 3. `HUMAN-GATES.md` — the gate list from Q7, plus the budget/stop rule.
-   Generated from `templates/HUMAN-GATES.md`.
+   Generated from `templates/HUMAN-GATES.md.tmpl`.
 4. `TRIGGER.md` — the trigger definition from Q2 (cron expression, event
-   spec, or run-until-done config). Generated from `templates/TRIGGER.md`.
+   spec, or run-until-done config). Generated from `templates/TRIGGER.md.tmpl`.
 
 **Changing (written to the working tree, read+written each run):**
 
 5. `loops/<loop-name>/STATE.md` (or the backend selected below) — the state
-   file. Initialize it with the current timestamp and empty counters.
+   file. Generated from `templates/STATE.md.tmpl`; initialize with the current
+   timestamp and empty counters.
 6. If durable knowledge was captured: a second installed skill at
    `<host-skills-dir>/<loop-name>-knowledge/SKILL.md` containing that
    read-only reference material.
