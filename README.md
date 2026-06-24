@@ -1,6 +1,6 @@
 # loop-maker
 
-A Claude Code skill that interviews you and scaffolds a self-running autonomous loop — complete with verifier, state file, and human gate — so you don't build one wrong.
+A portable agent skill — works in Claude Code, Codex, Hermes, and OpenClaw — that interviews you and scaffolds a self-running autonomous loop, complete with verifier, state file, and human gate, so you don't build one wrong.
 
 ## Why most loops go wrong
 
@@ -29,7 +29,7 @@ A Claude Code skill that interviews you and scaffolds a self-running autonomous 
 |---|---|
 | **What it does** | Runs a 7-question wizard; catches missing verifiers, state leaks, and runaway loops before scaffold |
 | **What you get** | A ready-to-run loop folder: `SKILL.md` + `STATE.md` + verifier script + stop condition wired in |
-| **How you start** | `/loop-maker` inside any Claude Code session |
+| **How you start** | `/loop-maker`, or just describe an automate/schedule/monitor task — fires without the word "loop" |
 | **Install** | `git clone … ~/.claude/skills/loop-maker` — or see Install below |
 
 ## Wizard UX
@@ -70,7 +70,7 @@ The progress bar, breadcrumb, and blueprint box are rendered live by `scripts/lo
 
 ```bash
 # Option A — drop into your global Claude skills folder
-git clone https://github.com/erictech/loop-maker ~/.claude/skills/loop-maker
+git clone https://github.com/EricTechPro/loop-maker ~/.claude/skills/loop-maker
 
 # Option B — install into a custom skills directory
 LOOP_MAKER_SKILLS_DIR=~/my-project/.claude/skills ./install.sh
