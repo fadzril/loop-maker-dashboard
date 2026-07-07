@@ -70,9 +70,10 @@ The progress bar, breadcrumb, and blueprint box are rendered live by `scripts/lo
 
 ```bash
 # Option A — drop into your global Claude skills folder
-git clone https://github.com/EricTechPro/loop-maker ~/.claude/skills/loop-maker
+# (repo is loop-maker-dashboard; the skill dir stays `loop-maker` so /loop-maker resolves)
+git clone https://github.com/fadzril/loop-maker-dashboard ~/.claude/skills/loop-maker
 
-# Option B — install into a custom skills directory
+# Option B — install into a custom skills directory (run from the cloned repo)
 LOOP_MAKER_SKILLS_DIR=~/my-project/.claude/skills ./install.sh
 ```
 
@@ -83,6 +84,14 @@ LOOP_MAKER_SKILLS_DIR=~/my-project/.claude/skills ./install.sh
 ```
 
 That's it. The wizard runs, asks 7 questions, and writes the scaffolded loop under `loops/<name>/` in your project.
+
+### Enable under Claude
+
+Claude Code auto-discovers skills in `~/.claude/skills/` — there's no separate enable
+toggle. Once installed (Option A or `install.sh`), the skill is live: invoke it with
+`/loop-maker`, or just describe an automate/schedule/monitor task and it fires. If a
+session was already running when you added the skill dir, restart it to pick up the new
+skill.
 
 ## What this is NOT
 
