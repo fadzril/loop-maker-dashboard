@@ -127,98 +127,78 @@ def _e(s: str) -> str:
 
 # ----- section builders -------------------------------------------------------
 
-def _meter(groups):
-    blocks = []
-    for name, items in groups:
-        cells = "".join(f'<i class="cell {it["status"] if it["status"] != "pend" else ""}"></i>' for it in items)
-        done = sum(1 for it in items if it["status"] == "done")
-        blocks.append(f'<div class="grp" title="{_e(name)} — {done}/{len(items)}">{cells}</div>')
-    return "\n      ".join(blocks)
+# item status -> (chip class, chip label, card extra class, seg span class)
+_VIS = {
+    "done": ("done", "Verified", "", "on"),
+    "run":  ("run", "Running", " run", "cur"),
+    "fail": ("bad", "Failed", " bad", "bad"),
+    "pend": ("wait", "Pending", "", ""),
+}
 
 
-def _meter_labels(groups):
+def _seg(items):
+    return "".join(f'<span class="{_VIS[it["status"]][3]}"></span>' for it in items) or "<span></span>"
+
+
+def _group_cards(groups):
     out = []
     for name, items in groups:
-        out.append(f'<div class="gl" style="flex:{max(len(items),1)}"><span class="eyebrow">{_e(name)}</span></div>')
-    return "\n      ".join(out)
-
-
-def _tiles(groups):
-    if len(groups) <= 1:
-        return ""  # single group: the summary + stack already say everything
-    tiles = []
-    for name, items in groups:
-        total = len(items)
         done = sum(1 for it in items if it["status"] == "done")
-        any_run = any(it["status"] == "run" for it in items)
-        any_fail = any(it["status"] == "fail" for it in items)
-        cls, pill = "", "pend"
-        if any_fail:
-            cls, pill = "f", "fail"
-        elif done == total and total:
-            cls, pill = "d", "done"
-        elif any_run:
-            cls, pill = "r", "run"
-        pct = int(round(100 * done / total)) if total else 0
-        tiles.append(
-            f'<div class="tile {cls}"><span class="stripe"></span>'
-            f'<h3>{_e(name)}</h3><div class="where">{total} item(s)</div>'
-            f'<div class="barrow"><div class="bar {cls}"><i style="width:{pct}%"></i></div>'
-            f'<span class="frac">{done}/{total}</span></div>'
-            f'<span class="pill {pill}">{pill}</span></div>'
-        )
-    return '<div class="tiles">\n    ' + "\n    ".join(tiles) + "\n  </div>\n"
-
-
-def _stacks(groups):
-    out = []
-    for name, items in groups:
-        any_run = any(it["status"] == "run" for it in items)
-        any_fail = any(it["status"] == "fail" for it in items)
-        done = sum(1 for it in items if it["status"] == "done")
-        head_pill = "fail" if any_fail else ("run" if any_run else ("done" if done == len(items) and items else "pend"))
-        rows = []
+        cards = []
         for i, it in enumerate(items, 1):
-            b = f'<div class="b">{_e(it["notes"])}</div>' if it["notes"] else ""
-            rows.append(
-                f'<div class="row {it["status"]}"><span class="lstripe"></span>'
-                f'<div class="tk">{i:02d}</div>'
-                f'<div class="desc"><div class="t">{_e(it["item"])}</div>{b}</div>'
-                f'<div class="tags"><span class="pill {it["status"]}">{it["status"]}</span></div></div>'
+            chip_cls, label, card_extra, _ = _VIS[it["status"]]
+            meta = f'<div class="meta"><span>{_e(it["notes"])}</span></div>' if it["notes"] else ""
+            cards.append(
+                f'<div class="card{card_extra}"><div class="ctop">'
+                f'<span class="part"><b>{_e(name)}-{i:02d}</b></span>'
+                f'<span class="chip {chip_cls}">{label}</span></div>'
+                f'<div class="desc">{_e(it["item"])}</div>{meta}</div>'
             )
         out.append(
-            f'<div class="stack"><div class="stack-head">'
-            f'<span class="repo">{_e(name)}</span><span class="pill {head_pill}">{head_pill}</span>'
-            f'<span class="base">{done}/{len(items)}</span></div>'
-            + "".join(rows) + "</div>"
+            f'<div class="grp"><h4><span>{_e(name)}</span><span>{done}/{len(items)}</span></h4>'
+            + "".join(cards) + "</div>"
         )
-    return "\n  ".join(out)
+    return "\n      ".join(out) or '<div class="grp"><h4>No items yet</h4></div>'
 
 
 def _gate_rows(gates_text):
+    """Human gates (soft tag) + budget/stop (hard tag), as one <ul class=gates> body."""
     if gates_text is None:
-        return '<div class="gate"><span class="k">gates</span><span>HUMAN-GATES.md not found — gates unverified</span></div>'
-    dicts = _table_dicts(_section_rows(gates_text, "Human gates"))
+        return ('<li><span class="tag hard">gates</span><span>HUMAN-GATES.md not found — '
+                'gates unverified</span></li>')
     rows = []
-    for d in dicts:
+    for d in _table_dicts(_section_rows(gates_text, "Human gates")):
         name = d.get("gate", "")
-        trigger = d.get("trigger condition") or d.get("trigger", "")
+        trig = d.get("trigger condition") or d.get("trigger", "")
         if name:
-            rows.append(f'<div class="gate"><span class="k">{_e(name)}</span><span>{_e(trigger)}</span></div>')
-    return "\n      ".join(rows) or '<div class="gate"><span class="k">gates</span><span>none listed</span></div>'
-
-
-def _budget_rows(gates_text):
-    if gates_text is None:
-        return '<div class="gate"><span class="k">budget</span><span>not set — a loop without a hard stop can run forever</span></div>'
-    dicts = _table_dicts(_section_rows(gates_text, "Budget"))
-    rows = []
-    for d in dicts:
-        dim = d.get("dimension", "")
-        limit = d.get("limit", "")
+            tag = _e(d.get("#", "") or "gate")
+            rows.append(f'<li><span class="tag">{tag}</span><span><b>{_e(name)}</b> — {_e(trig)}</span></li>')
+    budget = []
+    for d in _table_dicts(_section_rows(gates_text, "Budget")):
+        dim, lim = d.get("dimension", ""), d.get("limit", "")
         if dim:
-            rows.append(f'<div class="gate"><span class="k">{_e(dim)}</span><span>{_e(limit)}</span></div>')
-    return "\n      ".join(rows) or '<div class="gate"><span class="k">budget</span><span>not set</span></div>'
+            budget.append(f'<li><span class="tag hard">{_e(dim)}</span><span>{_e(lim)}</span></li>')
+    if not budget:
+        budget = ['<li><span class="tag hard">budget</span><span>not set — a loop without a hard stop can run forever</span></li>']
+    return "\n        ".join(rows + budget) or '<li><span class="tag">gates</span><span>none listed</span></li>'
+
+
+def _timeline(items, last):
+    ex = str(last["exit"]).strip()
+    mk = "ok" if ex == "0" else ("run" if ex in ("—", "") else "bad")
+    rows = [f'<li><span class="mk {mk}"></span><div><b>{_e(last["outcome"])}</b> — '
+            f'iteration {_e(last["iteration"])}, exit {_e(ex or "—")} '
+            f'<span class="t">{_e(last["timestamp"])}</span></div></li>']
+    verbs = {"done": ("ok", "verified"), "fail": ("bad", "verifier failed"), "run": ("run", "running")}
+    events = [it for it in items if it["status"] in verbs]
+    for it in reversed(events[-9:]):  # newest ledger rows first; cap at 9
+        m, verb = verbs[it["status"]]
+        rows.append(f'<li><span class="mk {m}"></span><div><b>{_e(it["item"])}</b> — {verb} '
+                    f'<span class="t">{_e(it["group"])}</span></div></li>')
+    if not events:
+        rows.append('<li><span class="mk fix"></span><div>scaffolded — no items processed yet '
+                    '<span class="t">start</span></div></li>')
+    return "\n      ".join(rows)
 
 
 def render(state_text, gates_text, title, now, state_path):
@@ -235,13 +215,23 @@ def render(state_text, gates_text, title, now, state_path):
     if fail:
         sclass, slabel = "fail", "halted · verifier fail"
     elif total and done == total:
-        sclass, slabel = "done", "complete"
+        sclass, slabel = "ok", "complete"
     elif run:
-        sclass, slabel = "run", f"running · iter {_e(last['iteration'])}"
+        sclass, slabel = "run", f"running · iter {last['iteration']}"
     elif done:
-        sclass, slabel = "pend", f"idle · {done}/{total} done"
+        sclass, slabel = "wait", f"idle · {done}/{total} done"
     else:
-        sclass, slabel = "pend", "not started"
+        sclass, slabel = "wait", "not started"
+
+    open_ct = total - done
+    open_parts = []
+    if run:
+        open_parts.append(f"{run} running")
+    if pend:
+        open_parts.append(f"{pend} pending")
+    if fail:
+        open_parts.append(f"{fail} failed")
+    open_summary = " · ".join(open_parts) or "all verified"
 
     name_m = re.search(r"^#\s*(.+?)(?:\s+—\s+State Ledger)?\s*$", state_text, re.M)
     loop_name = title or (name_m.group(1).strip() if name_m else "Loop")
@@ -253,17 +243,20 @@ def render(state_text, gates_text, title, now, state_path):
         "EYEBROW": "loop-maker · self-running loop",
         "SUBTITLE": _e(subtitle),
         "STATUS_CLASS": sclass,
+        "STATUS_CLASS_BADGE": sclass,
         "STATUS_LABEL": _e(slabel),
         "DONE_COUNT": str(done),
         "TOTAL_COUNT": str(total),
-        "RUN_COUNT": str(run),
-        "PEND_COUNT": str(pend),
-        "METER_GROUPS": _meter(groups) or '<div class="grp"></div>',
-        "METER_LABELS": _meter_labels(groups),
-        "TILES_BLOCK": _tiles(groups),
-        "STACKS": _stacks(groups) or '<div class="stack"><div class="row"><div class="desc"><div class="t">No items yet.</div></div></div></div>',
+        "PROGRESS_SEGMENTS": _seg(items),
+        "ITERATION": _e(last["iteration"]),
+        "LAST_TIMESTAMP": _e(last["timestamp"]),
+        "LAST_OUTCOME": _e(last["outcome"]),
+        "LAST_EXIT": _e(last["exit"]),
+        "OPEN_COUNT": str(open_ct),
+        "OPEN_SUMMARY": _e(open_summary),
+        "GROUP_CARDS": _group_cards(groups),
         "GATES_ROWS": _gate_rows(gates_text),
-        "BUDGET_ROWS": _budget_rows(gates_text),
+        "TIMELINE_ROWS": _timeline(items, last),
         "GENERATED_AT": _e(now),
         "STATE_PATH": _e(state_path),
     }
@@ -299,7 +292,7 @@ def _main(argv) -> int:
     out_path = a.out or os.path.join(os.path.dirname(a.state) or ".", "dashboard.html")
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(out_html)
-    print(out_path)
+    print("file://" + os.path.abspath(out_path))
     return 0
 
 

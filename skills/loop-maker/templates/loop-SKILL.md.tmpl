@@ -81,6 +81,12 @@ Before the first live run:
 2. Review `HUMAN-GATES.md` — all gates listed there must be passed before
    real actions begin.
 3. Confirm the verifier is executable and returns 0 on a known-good input.
+4. Start the dashboard server (idempotent — safe to call on every run):
+   `serve_dashboard.sh loops/{{LOOP_NAME}}` prints
+   `http://127.0.0.1:<port>/dashboard.html`; note that URL. It reuses an
+   existing server, so the URL stays stable while the board refreshes. If it
+   exits non-zero (no `python3`), open `loops/{{LOOP_NAME}}/dashboard.html`
+   directly (`file://`) or publish it as a Claude Artifact.
 
 ---
 

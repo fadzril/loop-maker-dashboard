@@ -64,23 +64,23 @@ def test_status_normalization():
     assert rd._status_class("") == "pend"
 
 
-def test_multi_group_shows_tiles_and_stacks():
+def test_multi_group_renders_grouped_cards_and_timeline():
     html = _render(MULTI, GATES)
-    assert '<div class="tiles">' in html          # >1 group -> tiles row present
+    assert 'class="grp"' in html                    # grouped stacked cards
     assert "admin_app" in html and "web_app" in html
     assert "ADMIN-1 selector" in html
-    assert "all FE subtasks verified" in html      # goal -> subtitle
-    assert "Pre-run sign-off" in html              # gates parsed
-    assert "Max iterations" in html                # budget parsed
-    assert 'class="live run"' in html              # one in-progress -> running
+    assert "all FE subtasks verified" in html        # goal -> subtitle
+    assert "Pre-run sign-off" in html                # gates parsed
+    assert "Max iterations" in html                  # budget parsed (hard tag)
+    assert 'class="statuspill run"' in html          # one in-progress -> running
+    assert "verified" in html                        # ADMIN-1 done -> timeline entry
 
 
-def test_single_group_hides_tiles():
+def test_single_group_all_done_is_complete():
     html = _render(LEGACY)  # legacy 3-col ledger, one implicit "default" group
-    assert '<div class="tiles">' not in html       # single group -> no tiles clutter
     assert "only task" in html
-    assert 'class="live done"' in html             # all done -> complete
-    assert "not found" in html                     # no gates file -> surfaced, not silent
+    assert 'class="statuspill ok"' in html           # all done -> complete
+    assert "not found" in html                       # no gates file -> surfaced, not silent
 
 
 def test_all_tokens_filled():

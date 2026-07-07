@@ -234,12 +234,13 @@ These files do not change at runtime. Install them to
 6. If durable knowledge was captured: a second installed skill at
    `<host-skills-dir>/<loop-name>-knowledge/SKILL.md` containing that
    read-only reference material.
-7. **Dashboard** — an auto-updating status board. Copy `render_dashboard.py`
-   and `templates/dashboard.html.tmpl` into the loop's installed skill dir (so
-   the loop is self-contained), and wire the render into the loop's write-state
-   step (see `templates/loop-SKILL.md.tmpl`). The rendered `dashboard.html` is
-   **changing** — it lives next to the state file at
-   `loops/<loop-name>/dashboard.html` and is regenerated on every tick.
+7. **Dashboard** — an auto-updating status board. Copy `render_dashboard.py`,
+   `scripts/serve_dashboard.sh`, and `templates/dashboard.html.tmpl` into the
+   loop's installed skill dir (so the loop is self-contained; add
+   `scripts/dashboard_watch.sh` too if using the watcher wiring), and wire the
+   render into the loop's write-state step (see `templates/loop-SKILL.md.tmpl`).
+   The rendered `dashboard.html` is **changing** — it lives next to the state
+   file at `loops/<loop-name>/dashboard.html` and is regenerated on every tick.
 
    - The renderer is a **deterministic template fill, not a model call** — it
      reads the state file and writes HTML, costing zero tokens. Do not scaffold
@@ -260,9 +261,20 @@ These files do not change at runtime. Install them to
        touch the loop's logic. Host-specific tick hooks (e.g. a Claude Code Stop
        hook) are an alternative; **verify the hook surface against current host
        docs** — see `references/host-adapters.md`.
+   - **Access URL — serve automatically, else publish.** On scaffold finish
+     (and idempotently at the start of each run), run `serve_dashboard.sh` to
+     serve the board at `http://127.0.0.1:<port>/dashboard.html` and **surface
+     that URL to the user**. It reuses an already-running server and binds to
+     localhost only. If it exits non-zero (no `python3`, or a headless host
+     where localhost is useless): while Claude is driving the scaffold, **fall
+     back to publishing `dashboard.html` as a Claude Artifact** and give that
+     link; a headless loop at runtime cannot publish, so it logs the `file://`
+     path instead. A shareable public URL is never minted silently — that stays
+     a deliberate publish step.
 
-After scaffolding, print the file tree so the user can confirm nothing is
-missing.
+After scaffolding, print the file tree **and surface the dashboard URL** (the
+`serve_dashboard.sh` output, or the Artifact link) so the user can open the
+board immediately.
 
 ---
 
