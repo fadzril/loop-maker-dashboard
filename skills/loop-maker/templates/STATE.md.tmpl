@@ -11,13 +11,19 @@
 
 ## Ledger
 
-| item | status | notes |
-|------|--------|-------|
-| (initial) | pending | scaffold — no runs yet |
+| group | item | status | notes |
+|-------|------|--------|-------|
+| default | (initial) | pending | scaffold — no runs yet |
 
 <!--
 Add one row per work item as the loop discovers and processes them.
 Valid status values: pending · in-progress · done · failed · skipped
+The `group` column is how the loop records its decomposition of the task set:
+one group for a single-workstream loop, one per sub-loop / repo / phase when the
+loop fans a task set into parallel stacks. The dashboard renders one block per
+distinct group, so the board's shape follows the loop's own decomposition.
+(A legacy 3-column ledger without `group` still renders — everything lands in a
+single "default" group.)
 -->
 
 ---

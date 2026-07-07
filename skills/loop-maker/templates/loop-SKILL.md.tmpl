@@ -44,8 +44,24 @@ The loop follows the **{{PATTERN}}** pattern. Each iteration proceeds in order:
    - Exit 0 → iteration passed; advance state and continue.
    - Exit 1 → iteration failed; halt and surface the anomaly for human review.
 5. **Write state** — update `{{STATE_PATH}}` with the new position, counters,
-   and timestamp before stopping or looping.
-6. **Check exit predicate** — if `{{GOAL}}` now holds, stop; otherwise repeat.
+   and timestamp before stopping or looping. This write **is** the loop's tick.
+6. **Refresh dashboard** — run `render_dashboard.py` (installed alongside this
+   skill) against `{{STATE_PATH}}` to regenerate `dashboard.html`:
+
+   ```
+   python3 <this-skill-dir>/render_dashboard.py \
+     --state {{STATE_PATH}} \
+     --gates <this-skill-dir>/HUMAN-GATES.md \
+     --out  loops/{{LOOP_NAME}}/dashboard.html
+   ```
+
+   The render is a deterministic template fill, **not** a model call — it costs
+   no tokens and cannot drift from the state file. Rendering here (right after
+   the state write) keeps the board current on every tick. Alternatively, leave
+   this step out and run `dashboard_watch.sh` as a separate idle process that
+   re-renders whenever `{{STATE_PATH}}` changes — use that when the loop runs on
+   another host and only drops the state file here.
+7. **Check exit predicate** — if `{{GOAL}}` now holds, stop; otherwise repeat.
 
 If the verifier returns non-zero, the loop must halt immediately. Do not retry
 silently. Write the failure reason to `{{STATE_PATH}}` and wait for human input

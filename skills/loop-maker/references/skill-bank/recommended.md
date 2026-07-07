@@ -1,9 +1,24 @@
 # Skill Bank — Recommended Borrowable Capabilities
 
-A curated catalog of publicly available capabilities that a scaffolded loop can
-borrow or extend rather than rebuild from scratch. Organized by the loop block
-each one serves. The search sub-agent (`search-agent.md`) reads this file to
-propose a relevance-ranked shortlist for a specific loop's needs.
+A curated catalog of borrowable capabilities — public tools **and internal
+knowledge sources** — that a scaffolded loop can borrow or extend rather than
+rebuild from scratch. Organized by the loop block each one serves. The search
+sub-agent (`search-agent.md`) reads this file to propose a relevance-ranked
+shortlist for a specific loop's needs.
+
+---
+
+## Reference precedence — internal wiki first
+
+Before a loop reaches for any **external** provider (web search, Firecrawl, a
+third-party docs API) to do research, read code context, or check a domain fact,
+it should consult the **internal CaterSpot wiki first, if available** — the
+business-domain knowledge base built from CaterSpot's own docs, schemas, and
+decisions. It is the highest-signal, lowest-risk source: grounded in how
+CaterSpot actually works, and it keeps internal context from leaking to
+third-party providers. External providers are the **fallback** for what the
+wiki does not cover. Detect wiki availability with the Phase-1 detect-first
+probe; if none is present, fall straight through to the external options.
 
 ---
 
@@ -35,10 +50,12 @@ Skills and tools that provide a binary pass/fail verdict on a generator's output
 
 ## Connector block
 
-Tools that give the loop read/write access to external data sources.
+Tools that give the loop read/write access to data sources — **internal
+knowledge first** (see the precedence rule above), then external.
 
 | Name | Where to get it | Block | Why | Fallback |
 |---|---|---|---|---|
+| **CaterSpot wiki (internal)** | `wiki-query` skill (compiled Obsidian vault) · Confluence via the Atlassian MCP (`search`/`fetch`) · the `search-company-knowledge` skill | connector | The business-domain knowledge base — schemas, terminology, past decisions, how CaterSpot actually works. **Consult first** for research, code reading, and sourcing the rules a verifier/evaluator checks against. Keeps internal context off third-party providers. | External web search (**Firecrawl MCP** / **WebSearch** below) — only for what the wiki does not cover. |
 | **gh CLI** | `brew install gh` / [cli.github.com](https://cli.github.com) | connector | Reads and writes GitHub Issues, PRs, and Projects — covers the issue-tracker state backend and common discovery sources. | Direct GitHub REST API via `curl` with a personal access token. |
 | **Firecrawl MCP** | [github.com/mendableai/firecrawl-mcp-server](https://github.com/mendableai/firecrawl-mcp-server) | connector | Provides web-scrape and search tools to an MCP-aware host; no custom HTTP plumbing needed. | `curl` + `jq` against a search API, or the Brave Search API. |
 | **rclone** | `brew install rclone` / [rclone.org](https://rclone.org) | connector | Syncs files between the local working tree and 70+ cloud storage providers (S3, GCS, Dropbox, etc.). | Vendor-specific CLI (`aws s3 cp`, `gsutil`). |
@@ -94,3 +111,8 @@ Backends for tracking what the loop has done and where it left off.
 - **Listing here does not imply endorsement or derivation** — these are options
   to evaluate, not requirements to install. The search sub-agent returns a
   shortlist; the operator decides which (if any) to wire in.
+- **The wiki informs the verifier; it is not the verifier.** Use the CaterSpot
+  wiki to source the business rules and expected behavior the verifier encodes
+  (or the evaluator judges against) — then bake those into a deterministic,
+  binary check. Do not call the wiki as a live oracle inside the pass/fail step;
+  the verifier must stay a self-contained program with a stable exit code.

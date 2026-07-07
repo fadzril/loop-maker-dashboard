@@ -6,7 +6,8 @@ description: >
   agent, run unattended, monitor a condition, triage a queue, poll on a
   cadence, or turn any manual workflow self-running — even if you never
   say the word "loop". Walks through elicit → survey → select → scaffold,
-  producing 6 building blocks with a human-gate list and a budget/stop rule.
+  producing 7 building blocks (including an auto-updating dashboard) with a
+  human-gate list and a budget/stop rule.
 ---
 
 # loop-maker
@@ -14,7 +15,8 @@ description: >
 A 4-phase wizard that turns any "I want this to run by itself" intent into a
 deployable, auditable agent loop. The output is concrete: a skill folder, a
 separate verifier program, a state file, human gates, a trigger definition,
-and a budget. Nothing runs until you approve the blueprint.
+a budget, and an auto-updating status dashboard. Nothing runs until you approve
+the blueprint.
 
 ---
 
@@ -204,7 +206,7 @@ python scripts/loop_progress.py blueprint \
 Present the rendered box to the user. Do not write files until the user
 approves. If anything is wrong, correct it in the elicit answers and re-render.
 
-### Step 4b — Scaffold the 6 building blocks
+### Step 4b — Scaffold the 7 building blocks
 
 Split by durability:
 
@@ -232,6 +234,32 @@ These files do not change at runtime. Install them to
 6. If durable knowledge was captured: a second installed skill at
    `<host-skills-dir>/<loop-name>-knowledge/SKILL.md` containing that
    read-only reference material.
+7. **Dashboard** — an auto-updating status board. Copy `render_dashboard.py`
+   and `templates/dashboard.html.tmpl` into the loop's installed skill dir (so
+   the loop is self-contained), and wire the render into the loop's write-state
+   step (see `templates/loop-SKILL.md.tmpl`). The rendered `dashboard.html` is
+   **changing** — it lives next to the state file at
+   `loops/<loop-name>/dashboard.html` and is regenerated on every tick.
+
+   - The renderer is a **deterministic template fill, not a model call** — it
+     reads the state file and writes HTML, costing zero tokens. Do not scaffold
+     an LLM "agent" to render the board; that would burn tokens forever for a
+     job a script does in milliseconds.
+   - **The board's shape follows the loop's decomposition.** The renderer emits
+     one block per distinct `group` in the ledger: a single-workstream loop
+     writes one group and gets a clean single-loop board; a loop that fans a
+     task set into parallel stacks (orchestrator–workers) writes one group per
+     sub-loop / repo / phase and gets the full control board — tiles + per-group
+     stacks. No layout flag; the data drives it.
+   - **Auto-update on tick — two wirings, pick per host:**
+     - *inline* (default): the loop calls `render_dashboard.py` at the end of
+       its write-state step. Can't drift; nothing extra to run.
+     - *watcher*: `scripts/dashboard_watch.sh <STATE.md> <HUMAN-GATES.md>` runs
+       idle and re-renders whenever the state file changes — for when the loop
+       runs elsewhere and only drops the state file here, or you don't want to
+       touch the loop's logic. Host-specific tick hooks (e.g. a Claude Code Stop
+       hook) are an alternative; **verify the hook surface against current host
+       docs** — see `references/host-adapters.md`.
 
 After scaffolding, print the file tree so the user can confirm nothing is
 missing.
@@ -300,6 +328,10 @@ item is missing, fix it before declaring done.
 - [ ] `HUMAN-GATES.md` is present and includes at minimum one pre-run gate and
       one anomaly gate
 - [ ] Budget / stop rule is written into `HUMAN-GATES.md` as a hard limit
+- [ ] Dashboard wired: `render_dashboard.py` + `dashboard.html.tmpl` installed
+      alongside the loop skill, and the render is called from the write-state
+      step (or `dashboard_watch.sh` is running) so `dashboard.html` refreshes
+      on every tick
 - [ ] Any trigger or scheduler syntax is flagged "verify against current host
       docs" with a pointer to `references/host-adapters.md`
 - [ ] Any `/goal`, `/loop`, or `/schedule` command referenced in output is

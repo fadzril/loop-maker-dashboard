@@ -28,7 +28,7 @@ A portable agent skill — works in Claude Code, Codex, Hermes, and OpenClaw —
 | | |
 |---|---|
 | **What it does** | Runs a 7-question wizard; catches missing verifiers, state leaks, and runaway loops before scaffold |
-| **What you get** | A ready-to-run loop folder: `SKILL.md` + `STATE.md` + verifier script + stop condition wired in |
+| **What you get** | A ready-to-run loop folder: `SKILL.md` + `STATE.md` + verifier script + stop condition wired in, plus an auto-updating `dashboard.html` that re-renders from the state file on every tick |
 | **How you start** | `/loop-maker`, or just describe an automate/schedule/monitor task — fires without the word "loop" |
 | **Install** | `claude plugin marketplace add fadzril/loop-maker-dashboard` then `claude plugin install loop-maker@loop-maker-dashboard` — or see Install below |
 

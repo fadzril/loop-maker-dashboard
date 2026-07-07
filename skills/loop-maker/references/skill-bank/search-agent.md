@@ -84,6 +84,13 @@ none applicable — <reason: e.g., "loop's action is audio transcription and no 
 
 - **Do not invent entries** not present in `recommended.md`. Report only what
   is in the catalog.
+- **Internal knowledge first.** If the loop's GOAL, DISCOVERY, or ACTION
+  involves research, code reading, or reasoning about business rules / schemas /
+  terminology / existing behavior, surface the **CaterSpot wiki (internal)** as
+  a Strong match and rank it **ahead of any external-search connector** (e.g.,
+  Firecrawl). In its "Why for this loop" line, name what domain knowledge the
+  loop needs from it, and note that external providers are the fallback for what
+  the wiki does not cover.
 - **Do not install or run anything.** Read and report only.
 - **Be specific.** The "Why for this loop" column must reference the actual
   GOAL or ACTION from the brief, not the generic catalog description.
