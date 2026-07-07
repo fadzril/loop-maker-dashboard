@@ -30,7 +30,7 @@ A portable agent skill — works in Claude Code, Codex, Hermes, and OpenClaw —
 | **What it does** | Runs a 7-question wizard; catches missing verifiers, state leaks, and runaway loops before scaffold |
 | **What you get** | A ready-to-run loop folder: `SKILL.md` + `STATE.md` + verifier script + stop condition wired in |
 | **How you start** | `/loop-maker`, or just describe an automate/schedule/monitor task — fires without the word "loop" |
-| **Install** | `git clone … ~/.claude/skills/loop-maker` — or see Install below |
+| **Install** | `claude plugin marketplace add fadzril/loop-maker-dashboard` then `claude plugin install loop-maker@loop-maker-dashboard` — or see Install below |
 
 ## Wizard UX
 
@@ -68,13 +68,19 @@ The progress bar, breadcrumb, and blueprint box are rendered live by `scripts/lo
 
 ## Install
 
-```bash
-# Option A — drop into your global Claude skills folder
-# (repo is loop-maker-dashboard; the skill dir stays `loop-maker` so /loop-maker resolves)
-git clone https://github.com/fadzril/loop-maker-dashboard ~/.claude/skills/loop-maker
+This repo is a **Claude Code plugin** and its own single-plugin marketplace. Pick the path
+that fits your host.
 
-# Option B — install into a custom skills directory (run from the cloned repo)
-LOOP_MAKER_SKILLS_DIR=~/my-project/.claude/skills ./install.sh
+```bash
+# Option A — Claude Code plugin (recommended). Installs, versions, and enables via /plugin.
+claude plugin marketplace add fadzril/loop-maker-dashboard   # or a local path to this clone
+claude plugin install loop-maker@loop-maker-dashboard
+
+# Option B — portable skill copy (Claude Code or any host: Codex, Hermes, OpenClaw).
+# Copies skills/loop-maker/ into the host's skills dir.
+git clone https://github.com/fadzril/loop-maker-dashboard
+cd loop-maker-dashboard && ./install.sh
+#   → custom dir: LOOP_MAKER_SKILLS_DIR=~/my-project/.claude/skills ./install.sh
 ```
 
 ### Usage
@@ -87,11 +93,13 @@ That's it. The wizard runs, asks 7 questions, and writes the scaffolded loop und
 
 ### Enable under Claude
 
-Claude Code auto-discovers skills in `~/.claude/skills/` — there's no separate enable
-toggle. Once installed (Option A or `install.sh`), the skill is live: invoke it with
-`/loop-maker`, or just describe an automate/schedule/monitor task and it fires. If a
-session was already running when you added the skill dir, restart it to pick up the new
-skill.
+- **Plugin (Option A):** `claude plugin install` enables it immediately; toggle later with
+  `claude plugin enable|disable loop-maker@loop-maker-dashboard` or the `/plugin` menu.
+  Update with `claude plugin update loop-maker@loop-maker-dashboard`.
+- **Skill copy (Option B):** Claude Code auto-discovers skills in `~/.claude/skills/` — no
+  separate enable toggle; `/loop-maker` is live once copied.
+
+Either way, restart a running session to pick up a newly-added plugin or skill.
 
 ## What this is NOT
 

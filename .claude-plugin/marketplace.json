@@ -1,0 +1,13 @@
+{
+  "name": "loop-maker-dashboard",
+  "description": "loop-maker — interviews you and scaffolds a self-running, self-verifying agent loop.",
+  "owner": {
+    "name": "fadzril"
+  },
+  "plugins": [
+    {
+      "name": "loop-maker",
+      "source": "."
+    }
+  ]
+}

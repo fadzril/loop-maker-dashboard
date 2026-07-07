@@ -1,0 +1,11 @@
+{
+  "name": "loop-maker",
+  "description": "Designs and scaffolds a self-running, self-verifying agent loop from a 7-question blueprint. Catches missing verifiers, state leaks, and runaway loops before scaffold.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Eric Tech",
+    "url": "https://erictech.ca"
+  },
+  "homepage": "https://github.com/fadzril/loop-maker-dashboard",
+  "license": "MIT"
+}
