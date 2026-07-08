@@ -89,6 +89,11 @@ def _ledger(text: str):
             "item": item,
             "status": _status_class(d.get("status", "")),
             "notes": d.get("notes", ""),
+            # optional richer columns — rendered only when the ledger carries them
+            "ref": d.get("ref", ""),
+            "type": d.get("type", ""),
+            "branch": d.get("branch", ""),
+            "pr": d.get("pr", ""),
         })
     return items
 
@@ -140,25 +145,83 @@ def _seg(items):
     return "".join(f'<span class="{_VIS[it["status"]][3]}"></span>' for it in items) or "<span></span>"
 
 
-def _group_cards(groups):
+_STLABEL = {"done": "done", "run": "running", "fail": "failed", "pend": "pending"}
+_STCLS = {"done": "done", "run": "run", "fail": "bad", "pend": "wait"}
+_ROWCLS = {"done": "done", "run": "run", "fail": "bad", "pend": ""}
+
+
+def _group_status(items):
+    done = sum(1 for it in items if it["status"] == "done")
+    if any(it["status"] == "fail" for it in items):
+        return "fail"
+    if any(it["status"] == "run" for it in items):
+        return "run"
+    return "done" if items and done == len(items) else "pend"
+
+
+def _tk(it, i):
+    """Two-line ticket cell from the optional `ref` column (e.g. 'ADMIN-1 · CAT-9901')."""
+    ref = it.get("ref", "").strip()
+    if not ref:
+        return f'<span class="part">#{i:02d}</span>'
+    parts = re.split(r"\s*[·/]\s*", ref, maxsplit=1)
+    if len(parts) == 2:
+        return f'<span class="part">{_e(parts[0])}</span>{_e(parts[1])}'
+    return _e(ref)
+
+
+def _row_tags(it):
+    tags = []
+    typ = it.get("type", "").strip()
+    if typ:
+        cls = "type new" if typ.upper() == "NEW" else "type"
+        tags.append(f'<span class="{cls}">{_e(typ)}</span>')
+    tags.append(f'<span class="st {_STCLS[it["status"]]}">{_STLABEL[it["status"]]}</span>')
+    pr = it.get("pr", "").strip()
+    if pr.startswith("http"):
+        tail = pr.rstrip("/").rsplit("/", 1)[-1]
+        label = "#" + tail if tail.isdigit() else "PR"
+        tags.append(f'<a class="pr" href="{_e(pr)}">{_e(label)}</a>')
+    elif pr:
+        tags.append(f'<span class="pr">{_e(pr)}</span>')
+    return "".join(tags)
+
+
+def _stacks(groups):
     out = []
     for name, items in groups:
-        done = sum(1 for it in items if it["status"] == "done")
-        cards = []
+        gstat = _group_status(items)
+        base = ""  # derive the stack base branch from the first item's branch left side
+        for it in items:
+            if it.get("branch", "").strip():
+                base = re.split(r"\s*(?:→|->)\s*", it["branch"].strip())[0].strip()
+                break
+        base_html = f'<span class="base">base · {_e(base)}</span>' if base else ""
+        rows = []
         for i, it in enumerate(items, 1):
-            chip_cls, label, card_extra, _ = _VIS[it["status"]]
-            meta = f'<div class="meta"><span>{_e(it["notes"])}</span></div>' if it["notes"] else ""
-            cards.append(
-                f'<div class="card{card_extra}"><div class="ctop">'
-                f'<span class="part"><b>{_e(name)}-{i:02d}</b></span>'
-                f'<span class="chip {chip_cls}">{label}</span></div>'
-                f'<div class="desc">{_e(it["item"])}</div>{meta}</div>'
+            branch = it.get("branch", "").strip()
+            note = it.get("notes", "").strip()
+            note_html = ""
+            if note:
+                ncls = "tbc" if re.search(r"tbc|!", note, re.I) else "xnote"
+                note_html = f' <span class="{ncls}">· {_e(note)}</span>'
+            sub = f'<div class="b">{_e(branch)}{note_html}</div>' if (branch or note_html) else ""
+            rows.append(
+                f'<div class="row {_ROWCLS[it["status"]]}"><span class="lstripe"></span>'
+                f'<div class="tk">{_tk(it, i)}</div>'
+                f'<div class="desc"><div class="t">{_e(it["item"])}</div>{sub}</div>'
+                f'<div class="tags">{_row_tags(it)}</div></div>'
             )
         out.append(
-            f'<div class="grp"><h4><span>{_e(name)}</span><span>{done}/{len(items)}</span></h4>'
-            + "".join(cards) + "</div>"
+            f'<div class="stack"><div class="stack-head">'
+            f'<span class="repo">{_e(name)}</span>'
+            f'<span class="st {_STCLS[gstat]}">{_STLABEL[gstat]}</span>{base_html}</div>'
+            + "".join(rows) + "</div>"
         )
-    return "\n      ".join(out) or '<div class="grp"><h4>No items yet</h4></div>'
+    return "\n  ".join(out) or (
+        '<div class="stack"><div class="row"><div class="desc">'
+        '<div class="t">No items yet.</div></div></div></div>'
+    )
 
 
 def _gate_rows(gates_text):
@@ -254,7 +317,7 @@ def render(state_text, gates_text, title, now, state_path):
         "LAST_EXIT": _e(last["exit"]),
         "OPEN_COUNT": str(open_ct),
         "OPEN_SUMMARY": _e(open_summary),
-        "GROUP_CARDS": _group_cards(groups),
+        "STACKS": _stacks(groups),
         "GATES_ROWS": _gate_rows(gates_text),
         "TIMELINE_ROWS": _timeline(items, last),
         "GENERATED_AT": _e(now),

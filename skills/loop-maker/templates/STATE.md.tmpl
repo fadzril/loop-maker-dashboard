@@ -24,6 +24,20 @@ loop fans a task set into parallel stacks. The dashboard renders one block per
 distinct group, so the board's shape follows the loop's own decomposition.
 (A legacy 3-column ledger without `group` still renders — everything lands in a
 single "default" group.)
+
+Optional richer columns — add any of these to get informative line items on the
+dashboard (a code-shipping loop typically fills them; a plain loop omits them):
+
+| group | item | status | ref | type | branch | pr | notes |
+|-------|------|--------|-----|------|--------|----|-------|
+| caterspot_admin_app | Tax-group selector on 4 forms | done | ADMIN-1 · CAT-9901 | NEW | fm/cat-9621 → fm/cat-9901 | #1823 | |
+
+  - `ref`    — two-line ticket cell, split on `·` or `/` (part above, id below)
+  - `type`   — NEW / REUSE tag (NEW is accent-colored)
+  - `branch` — base → head, shown under the title; the stack's base branch is
+               derived from the first row's left side
+  - `pr`     — `#1823` (chip) or a full URL (linked)
+  - `notes`  — inline note under the title; contains "TBC"/"!" → red, else muted
 -->
 
 ---

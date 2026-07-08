@@ -64,9 +64,27 @@ def test_status_normalization():
     assert rd._status_class("") == "pend"
 
 
-def test_multi_group_renders_grouped_cards_and_timeline():
+RICH = """# cat-9866-fe — State Ledger
+## Ledger
+| group | item | status | ref | type | branch | pr | notes |
+|-------|------|--------|-----|------|--------|----|-------|
+| caterspot_admin_app | Tax-group selector on 4 forms | done | ADMIN-1 · CAT-9901 | NEW | fm/cat-9621 → fm/cat-9901 | #1823 | |
+| caterspot_web_app | Quotation / Invoice PDF templates | pending | WEB-3 · CAT-9905 | NEW | fm/cat-9904 → fm/cat-9905 | https://github.com/x/y/pull/2968 | scope TBC |
+## Last run
+```
+timestamp : 2026-07-08 09:00
+iteration : 1
+outcome   : verified
+exit code : 0
+```
+## Notes
+- Goal predicate: **all FE surfaces shipped**
+"""
+
+
+def test_multi_group_renders_stacks_and_timeline():
     html = _render(MULTI, GATES)
-    assert 'class="grp"' in html                    # grouped stacked cards
+    assert 'class="stack"' in html                   # grouped stack of rows
     assert "admin_app" in html and "web_app" in html
     assert "ADMIN-1 selector" in html
     assert "all FE subtasks verified" in html        # goal -> subtitle
@@ -74,6 +92,17 @@ def test_multi_group_renders_grouped_cards_and_timeline():
     assert "Max iterations" in html                  # budget parsed (hard tag)
     assert 'class="statuspill run"' in html          # one in-progress -> running
     assert "verified" in html                        # ADMIN-1 done -> timeline entry
+
+
+def test_rich_columns_render_informative_rows():
+    html = _render(RICH, GATES)
+    assert 'class="part">ADMIN-1</span>CAT-9901' in html   # ref split into two lines
+    assert "fm/cat-9621 → fm/cat-9901" in html             # branch transition
+    assert 'class="type new">NEW' in html                  # NEW type tag
+    assert 'class="pr">#1823' in html                      # bare PR chip
+    assert 'href="https://github.com/x/y/pull/2968">#2968' in html  # URL -> #num link
+    assert 'class="tbc">· scope TBC' in html               # TBC note in red
+    assert "base · fm/cat-9621" in html                    # stack base derived
 
 
 def test_single_group_all_done_is_complete():
