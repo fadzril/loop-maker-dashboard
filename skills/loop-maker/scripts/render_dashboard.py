@@ -27,7 +27,19 @@ import sys
 from datetime import datetime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_TEMPLATE = os.path.join(HERE, "..", "templates", "dashboard.html.tmpl")
+
+
+def _default_template():
+    # Works whether this script sits in the plugin (../templates/) or is copied
+    # flat into a loop dir alongside dashboard.html.tmpl.
+    for p in (os.path.join(HERE, "dashboard.html.tmpl"),
+              os.path.join(HERE, "..", "templates", "dashboard.html.tmpl")):
+        if os.path.exists(p):
+            return p
+    return os.path.join(HERE, "..", "templates", "dashboard.html.tmpl")
+
+
+DEFAULT_TEMPLATE = _default_template()
 
 # status token -> (css class, done?, terminal-fail?)
 _STATUS = {

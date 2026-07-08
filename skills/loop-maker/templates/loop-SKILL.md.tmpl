@@ -61,6 +61,11 @@ The loop follows the **{{PATTERN}}** pattern. Each iteration proceeds in order:
    this step out and run `dashboard_watch.sh` as a separate idle process that
    re-renders whenever `{{STATE_PATH}}` changes — use that when the loop runs on
    another host and only drops the state file here.
+
+   Use the shipped `render_dashboard.py` verbatim — **never** hand-write
+   `dashboard.html` or a `render_dashboard` function, and keep `{{STATE_PATH}}`
+   in the canonical ledger format the renderer reads (`group`/`item`/`status`
+   [+ optional `ref`/`type`/`branch`/`pr`/`notes`]).
 7. **Check exit predicate** — if `{{GOAL}}` now holds, stop; otherwise repeat.
 
 If the verifier returns non-zero, the loop must halt immediately. Do not retry

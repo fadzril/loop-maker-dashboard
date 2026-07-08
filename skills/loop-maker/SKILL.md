@@ -234,13 +234,31 @@ These files do not change at runtime. Install them to
 6. If durable knowledge was captured: a second installed skill at
    `<host-skills-dir>/<loop-name>-knowledge/SKILL.md` containing that
    read-only reference material.
-7. **Dashboard** — an auto-updating status board. Copy `render_dashboard.py`,
-   `scripts/serve_dashboard.sh`, and `templates/dashboard.html.tmpl` into the
-   loop's installed skill dir (so the loop is self-contained; add
-   `scripts/dashboard_watch.sh` too if using the watcher wiring), and wire the
-   render into the loop's write-state step (see `templates/loop-SKILL.md.tmpl`).
-   The rendered `dashboard.html` is **changing** — it lives next to the state
-   file at `loops/<loop-name>/dashboard.html` and is regenerated on every tick.
+7. **Dashboard** — an auto-updating status board. The dashboard is a **shipped,
+   fixed asset — you install it, you do not build it.** Run, once, the installer:
+
+   ```
+   bash <this-skill-dir>/scripts/scaffold_dashboard.sh loops/<loop-name>
+   ```
+
+   It copies `render_dashboard.py`, `serve_dashboard.sh`, and
+   `dashboard.html.tmpl` into the loop dir and prints the exact `run.sh` wiring.
+   The rendered `dashboard.html` is **changing** — it lives at
+   `loops/<loop-name>/dashboard.html` and is regenerated on every tick.
+
+   > **DO NOT hand-write the dashboard.** Never author your own `dashboard.html`,
+   > `render_dashboard()` function, or ad-hoc HTML table. Never echo a `file://`
+   > path as "the dashboard URL." Use the shipped `render_dashboard.py` +
+   > `serve_dashboard.sh` verbatim — they are deterministic and already produce
+   > the correct layout, grouping, informative line items, and served URL. A
+   > hand-rolled dashboard is a scaffold failure; redo it with the installer.
+
+   > **The loop's `STATE.md` ledger MUST use the canonical columns** so
+   > `render_dashboard.py` can read it — `group`, `item`, `status` required;
+   > `ref`, `type`, `branch`, `pr`, `notes` optional (see `templates/STATE.md.tmpl`).
+   > Do **not** invent a different ledger schema. Map the task onto these columns
+   > (repo/phase → `group`, subtask id → `ref`, base→work → `branch`, etc.). A
+   > custom schema is what forces a custom renderer — the thing you must not write.
 
    - The renderer is a **deterministic template fill, not a model call** — it
      reads the state file and writes HTML, costing zero tokens. Do not scaffold
@@ -340,10 +358,16 @@ item is missing, fix it before declaring done.
 - [ ] `HUMAN-GATES.md` is present and includes at minimum one pre-run gate and
       one anomaly gate
 - [ ] Budget / stop rule is written into `HUMAN-GATES.md` as a hard limit
-- [ ] Dashboard wired: `render_dashboard.py` + `dashboard.html.tmpl` installed
-      alongside the loop skill, and the render is called from the write-state
-      step (or `dashboard_watch.sh` is running) so `dashboard.html` refreshes
-      on every tick
+- [ ] Dashboard installed via `scripts/scaffold_dashboard.sh` — `render_dashboard.py`,
+      `serve_dashboard.sh`, and `dashboard.html.tmpl` are present in the loop dir
+      (NOT hand-written), the render is called after every state write, and
+      `serve_dashboard.sh` runs at startup to surface the URL
+- [ ] `STATE.md` ledger uses the canonical columns (`group`/`item`/`status`
+      [+ optional `ref`/`type`/`branch`/`pr`/`notes`]) — not a custom schema
+- [ ] Opened `dashboard.html` and confirmed it is the `render_dashboard.py`
+      output (header + stat cards + `class="stack"` work items + timeline) and
+      shows the real items — a bare hand-rolled `<table>` means the renderer was
+      bypassed; redo with the installer
 - [ ] Any trigger or scheduler syntax is flagged "verify against current host
       docs" with a pointer to `references/host-adapters.md`
 - [ ] Any `/goal`, `/loop`, or `/schedule` command referenced in output is
