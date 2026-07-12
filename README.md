@@ -1,6 +1,9 @@
 # loop-maker
 
-A portable agent skill — works in Claude Code, Codex, Hermes, and OpenClaw — that interviews you and scaffolds a self-running autonomous loop, complete with verifier, state file, and human gate, so you don't build one wrong.
+A portable agent plugin — works in Claude Code, Codex, Hermes, and OpenClaw — with two skills:
+
+- **`loop-maker`** interviews you and scaffolds a self-running autonomous loop, complete with verifier, state file, and human gate, so you don't build one wrong.
+- **`review-ci`** is ready-to-run, no interview: point it at a GitHub PR (or a stacked chain of them) and it drives each one to reviewed-clean and green CI.
 
 ## Why most loops go wrong
 
@@ -66,6 +69,34 @@ The progress bar, breadcrumb, and blueprint box are rendered live by `scripts/lo
                    verifier / no stop
 ```
 
+## review-ci — drive a PR chain to reviewed-clean + green CI
+
+No interview, no scaffolding step — point it at a repo and PR number(s) and it
+runs immediately with sensible defaults (5 CI-check iterations, 5 review-fix
+iterations, 70% token budget before it stops and asks a human).
+
+```
+/loop-maker:review-ci <owner/repo> <pr1>,<pr2>,...
+```
+
+Each iteration it rebases the PR onto its updated parent (for a stacked
+chain), runs your repo's own code-review command, folds every fix into one
+commit, applies the CI-trigger label, watches the run — classifying genuine
+failures separately from flaky or fail-fast-cancelled ones — and repeats
+until every PR in the set is reviewed-clean, CI-green, and mergeable. It
+reuses the same `render_dashboard.py`/`serve_dashboard.sh` tooling as the
+wizard's scaffolded loops, so a run gets the same auto-updating dashboard.
+
+Because a review command's output format isn't standardized (and can drift
+even within one repo), `review-ci` doesn't regex-scan the raw review comment
+to decide "clean" — it has the invoking agent record a sha-pinned
+issue/note count into the run's own state file, and verifies against that.
+See `skills/review-ci/references/review-output-contract.md` for the
+two-field contract this relies on.
+
+Use `--dry-run` on a new repo or review command the first time — it exercises
+discovery and the verifier without touching the actual PR.
+
 ## Install
 
 This repo is a **Claude Code plugin** and its own single-plugin marketplace. Pick the path
@@ -77,7 +108,7 @@ claude plugin marketplace add fadzril/loop-maker-dashboard   # or a local path t
 claude plugin install loop-maker@loop-maker-dashboard
 
 # Option B — portable skill copy (Claude Code or any host: Codex, Hermes, OpenClaw).
-# Copies skills/loop-maker/ into the host's skills dir.
+# Copies both skills/loop-maker/ and skills/review-ci/ into the host's skills dir.
 git clone https://github.com/fadzril/loop-maker-dashboard
 cd loop-maker-dashboard && ./install.sh
 #   → custom dir: LOOP_MAKER_SKILLS_DIR=~/my-project/.claude/skills ./install.sh
@@ -89,7 +120,13 @@ cd loop-maker-dashboard && ./install.sh
 /loop-maker
 ```
 
-That's it. The wizard runs, asks 7 questions, and writes the scaffolded loop under `loops/<name>/` in your project.
+The wizard runs, asks 7 questions, and writes the scaffolded loop under `loops/<name>/` in your project.
+
+```
+/loop-maker:review-ci <owner/repo> <pr1>,<pr2>,...
+```
+
+Skips the interview and runs immediately — see the `review-ci` section above.
 
 ### Enable under Claude
 
