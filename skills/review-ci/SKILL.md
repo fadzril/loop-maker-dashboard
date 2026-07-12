@@ -142,6 +142,15 @@ token_spend_pct : 0
 One `## Ledger` row per PR, in chain order, `branch` as `base → head` (fill
 in the real base/head branch names once discovered in step 2 below).
 
+The `status` column MUST be one of the dashboard's recognized tokens —
+`pending`, `in-progress` (or `running`), `done`, `failed`, `skipped` — or the
+dashboard silently renders the row as `pending` (and the board looks idle even
+while the loop is working). Keep descriptive per-iteration state (e.g.
+`re-review clean`, `ci-running`, `blocked on gate`) in the **notes** column,
+never in `status`. Suggested mapping for this loop: `pending` (not yet
+reviewed) → `in-progress` (reviewing / fixing / CI running) → `done` (verify
+passed) / `failed` (a gate tripped).
+
 ### State path convention
 
 ```
@@ -249,8 +258,10 @@ Each iteration, for the **current PR** (first non-`done` PR in chain order):
    python3 <this-skill-dir>/../loop-maker/scripts/render_dashboard.py \
      --state <state-dir>/STATE.md \
      --gates <this-skill-dir>/HUMAN-GATES.md \
+     --prefix review-ci \
      --out   <state-dir>/dashboard.html
    ```
+   (`--prefix review-ci` titles the board `review-ci: <state heading>`.)
    On the very first run for a new state dir, first install the dashboard
    triad if it isn't already present:
    ```

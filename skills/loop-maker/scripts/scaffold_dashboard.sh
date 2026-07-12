@@ -25,16 +25,20 @@ Wire these into run.sh — do NOT hand-write a dashboard or a render function:
 
   SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   render(){ python3 "$SELF/render_dashboard.py" --state "$SELF/STATE.md" \
-              --gates "$SELF/HUMAN-GATES.md" --out "$SELF/dashboard.html" >/dev/null; }
+              --gates "$SELF/HUMAN-GATES.md" --prefix loop --out "$SELF/dashboard.html" >/dev/null; }
   # once at startup — prints the http URL (falls back to file:// with no python3):
   URL="$(bash "$SELF/serve_dashboard.sh" "$SELF" 2>/dev/null || echo "file://$SELF/dashboard.html")"
   echo "dashboard: $URL"
   # then call `render` after EVERY write to STATE.md.
+  # (--prefix titles the board "loop: <state heading>"; use a sibling skill's
+  #  own name as the prefix when it drives the loop, e.g. --prefix review-ci.)
 
 STATE.md MUST use the canonical ledger columns so render_dashboard.py can read it
 (group + item + status are required; ref/type/branch/pr are optional):
 
   | group | item | status | ref | type | branch | pr | notes |
+Valid status tokens: pending · in-progress (running) · done · failed · skipped
+(anything else renders as pending; put descriptive state in notes).
 
 Map your task onto these columns — do not invent a different ledger schema:
   repo / phase / sub-loop -> group    subtask id (e.g. WEB-9903) -> ref

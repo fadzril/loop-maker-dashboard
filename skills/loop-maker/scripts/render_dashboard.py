@@ -50,8 +50,26 @@ _STATUS = {
 }
 
 
+_WARNED_STATUS = set()
+
+
+def _warn_unknown_status(token: str):
+    # Warn once per distinct token so a stray status (e.g. "ci-running", "blocked")
+    # that silently renders as "pending" is visible instead of looking idle.
+    if token in _WARNED_STATUS:
+        return
+    _WARNED_STATUS.add(token)
+    valid = ", ".join(sorted(set(_STATUS) - {""}))
+    print(f"render_dashboard: unrecognized status {token!r} -> shown as 'pending'. "
+          f"Valid tokens: {valid}. Put descriptive state in the notes column.",
+          file=sys.stderr)
+
+
 def _status_class(raw: str) -> str:
-    return _STATUS.get(raw.strip().lower(), "pend")
+    key = raw.strip().lower()
+    if key and key not in _STATUS:
+        _warn_unknown_status(raw.strip())
+    return _STATUS.get(key, "pend")
 
 
 def _split_row(line: str):
@@ -276,7 +294,7 @@ def _timeline(items, last):
     return "\n      ".join(rows)
 
 
-def render(state_text, gates_text, title, now, state_path):
+def render(state_text, gates_text, title, now, state_path, prefix=None):
     items = _ledger(state_text)
     groups = _grouped(items)
     last = _last_run(state_text)
@@ -310,6 +328,12 @@ def render(state_text, gates_text, title, now, state_path):
 
     name_m = re.search(r"^#\s*(.+?)(?:\s+—\s+State Ledger)?\s*$", state_text, re.M)
     loop_name = title or (name_m.group(1).strip() if name_m else "Loop")
+    if prefix:
+        # Context prefix, e.g. "review-ci: <msg>" / "loop: <msg>". Don't double
+        # a prefix the state heading already carries.
+        p = prefix.strip()
+        if p and not loop_name.lower().startswith(p.lower() + ":"):
+            loop_name = f"{p}: {loop_name}"
     goal_m = re.search(r"Goal predicate:\s*\*\*(.+?)\*\*", state_text)
     subtitle = goal_m.group(1).strip() if goal_m else "self-running, self-verifying agent loop"
 
@@ -350,6 +374,8 @@ def _main(argv) -> int:
     ap.add_argument("--template", default=None)
     ap.add_argument("--out", default=None)
     ap.add_argument("--title", default=None)
+    ap.add_argument("--prefix", default=None,
+                    help="context prefix for the title, e.g. 'review-ci' or 'loop'")
     ap.add_argument("--now", default=None)
     a = ap.parse_args(argv)
 
@@ -363,7 +389,7 @@ def _main(argv) -> int:
             gates_text = f.read()
     now = a.now or datetime.now().strftime("%Y-%m-%d %H:%M")
 
-    out_html = render(state_text, gates_text, a.title, now, a.state)
+    out_html = render(state_text, gates_text, a.title, now, a.state, a.prefix)
     out_path = a.out or os.path.join(os.path.dirname(a.state) or ".", "dashboard.html")
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(out_html)

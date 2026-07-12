@@ -52,8 +52,12 @@ The loop follows the **{{PATTERN}}** pattern. Each iteration proceeds in order:
    python3 <this-skill-dir>/render_dashboard.py \
      --state {{STATE_PATH}} \
      --gates <this-skill-dir>/HUMAN-GATES.md \
+     --prefix loop \
      --out  loops/{{LOOP_NAME}}/dashboard.html
    ```
+
+   (`--prefix loop` titles the board `loop: <state heading>`; swap in a more
+   specific context label if this loop is invoked by a named sibling skill.)
 
    The render is a deterministic template fill, **not** a model call — it costs
    no tokens and cannot drift from the state file. Rendering here (right after
