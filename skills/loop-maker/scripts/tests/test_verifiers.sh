@@ -51,6 +51,15 @@ mkdir -p "$TMP/evidence" && touch "$TMP/evidence/step4.png"
                                                      check "$(run)" "0" "reqs: evidence file on disk passes"
 complete_doc; sed -i '' '/^## Permutation matrix/,$d' "$TMP/REQUIREMENTS.md"
                                                      check "$(run)" "1" "reqs: missing section fails"
+# --root resolves proof paths for a loop spanning several repos
+ROOT="$(mktemp -d)"; mkdir -p "$ROOT/spec" && touch "$ROOT/spec/merge_spec.rb"
+complete_doc; sed -i '' 's|spec: named example|spec: spec/merge_spec.rb|' "$TMP/REQUIREMENTS.md"
+                                                     check "$(run)" "1" "reqs: path outside base fails without --root"
+python3 "$DIR/check_requirements.py" "$TMP/REQUIREMENTS.md" --root "$ROOT" >/dev/null 2>&1
+                                                     check "$?" "0" "reqs: --root resolves the path"
+python3 "$DIR/check_requirements.py" "$TMP/REQUIREMENTS.md" --root >/dev/null 2>&1
+                                                     check "$?" "2" "reqs: --root without a value is misuse"
+rm -rf "$ROOT"
 python3 "$DIR/check_requirements.py" "$TMP/nope.md" >/dev/null 2>&1
                                                      check "$?" "2" "reqs: missing file is misuse"
 

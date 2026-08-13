@@ -13,8 +13,11 @@ Proof cells are `spec:`, `browser:` or `waived:`. When a proof names a path
 (anything containing `/`) the file must exist, so "verified in a browser"
 becomes an artifact on disk rather than a claim in a sentence.
 
-Usage: check_requirements.py <REQUIREMENTS.md> [--quiet]
+Usage: check_requirements.py <REQUIREMENTS.md> [--root DIR]... [--quiet]
 Exit:  0 = every row satisfied and proven · 1 = blanks remain · 2 = misuse
+
+--root is repeatable, for a loop spanning several repos: proof paths are
+resolved against the cwd, the file's own directory, and each root in turn.
 """
 from __future__ import annotations
 
@@ -25,7 +28,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from render_dashboard import _section_rows, _table_dicts  # noqa: E402  (sibling script)
 
-USAGE = "usage: check_requirements.py <REQUIREMENTS.md> [--quiet]"
+USAGE = "usage: check_requirements.py <REQUIREMENTS.md> [--root DIR]... [--quiet]"
 
 TRACE = "Requirement trace"
 QUESTIONS = "Open questions"
@@ -55,7 +58,11 @@ def evidence_path(value: str):
     return re.sub(r":\d+(?:-\d+)?$", "", token.strip("`'\"(),"))
 
 
-def check_table(rows, section, base, rules):
+def on_disk(path, roots):
+    return any((root / path).exists() for root in roots) or Path(path).exists()
+
+
+def check_table(rows, section, roots, rules):
     """rules: list of (column, (pattern|None, message)). Returns problem strings."""
     if not rows:
         return [f"{section}: section missing or has no table"]
@@ -75,15 +82,26 @@ def check_table(rows, section, base, rules):
             # An evidence path must actually be on disk — that is the whole
             # point of writing `browser: shots/step-4.png` instead of "checked".
             path = evidence_path(value) if PROOF.match(value) else None
-            if path and not (Path(path).exists() or (base / path).exists()):
+            if path and not on_disk(path, roots):
                 problems.append(f"{section} {rid}: evidence not on disk — {path}")
     return problems
 
 
 def main(argv):
-    flags = argv[1:]
+    flags = list(argv[1:])
     quiet = "--quiet" in flags
-    args = [a for a in flags if a != "--quiet"]
+    roots, args = [], []
+    while flags:
+        flag = flags.pop(0)
+        if flag == "--quiet":
+            continue
+        if flag == "--root":
+            if not flags:
+                print(USAGE, file=sys.stderr)
+                return 2
+            roots.append(Path(flags.pop(0)).expanduser())
+        else:
+            args.append(flag)
     if len(args) != 1:
         print(USAGE, file=sys.stderr)
         return 2
@@ -94,7 +112,7 @@ def main(argv):
         return 2
 
     text = path.read_text(encoding="utf-8")
-    base = path.parent
+    roots = [path.parent, *roots]
     tables = {name: _table_dicts(_section_rows(text, name)) for name in (TRACE, QUESTIONS, MATRIX)}
 
     # A waived requirement needs a reason, not a location. Let the reason stand
@@ -106,11 +124,11 @@ def main(argv):
             row["satisfied in"] = row["proven by"]
 
     problems = []
-    problems += check_table(tables[TRACE], TRACE, base,
+    problems += check_table(tables[TRACE], TRACE, roots,
                             [("satisfied in", ANY_RULE), ("proven by", PROOF_RULE)])
-    problems += check_table(tables[QUESTIONS], QUESTIONS, base,
+    problems += check_table(tables[QUESTIONS], QUESTIONS, roots,
                             [("resolution", ANSWER_RULE)])
-    problems += check_table(tables[MATRIX], MATRIX, base,
+    problems += check_table(tables[MATRIX], MATRIX, roots,
                             [("covered by", PROOF_RULE)])
 
     counted = sum(len(t) for t in tables.values())
