@@ -6,17 +6,17 @@ description: >
   agent, run unattended, monitor a condition, triage a queue, poll on a
   cadence, or turn any manual workflow self-running — even if you never
   say the word "loop". Walks through elicit → survey → select → scaffold,
-  producing 7 building blocks (including an auto-updating dashboard) with a
-  human-gate list and a budget/stop rule.
+  producing 8 building blocks (including a requirement trace and an
+  auto-updating dashboard) with a human-gate list and a budget/stop rule.
 ---
 
 # loop-maker
 
 A 4-phase wizard that turns any "I want this to run by itself" intent into a
 deployable, auditable agent loop. The output is concrete: a skill folder, a
-separate verifier program, a state file, human gates, a trigger definition,
-a budget, and an auto-updating status dashboard. Nothing runs until you approve
-the blueprint.
+separate verifier program, a requirement trace, a state file, human gates, a
+trigger definition, a budget, and an auto-updating status dashboard. Nothing
+runs until you approve the blueprint.
 
 ---
 
@@ -31,6 +31,45 @@ knowledge between runs — it only carries the logic. Everything that evolves
 lives in a file the loop reads and writes. Mutable state in a `SKILL.md` is
 the anti-pattern: it silently disappears the moment the next run loads the
 skill from disk.
+
+---
+
+## The second rule
+
+> **A loop may never verify itself against its own ledger.
+> "Done" is proved against the requirement source, or it is not proved.**
+
+The ledger records what the loop *did*. The requirement source — a ticket, a
+spec, a design — records what was *asked for*. An exit predicate that greps the
+state file for `done` is a tautology: it reports success because a previous
+iteration wrote the word. It will exit 0 on a build that satisfies none of the
+requirements, and it will do so with a clean audit trail.
+
+So every loop that implements a specification carries a second changing file,
+`REQUIREMENTS.md`, generated from the source **before** the ledger and holding
+three tables:
+
+| Table | Answers | Failure it prevents |
+|---|---|---|
+| **Requirement trace** | What did the source literally ask for, and where is each one proven? | A requirement written in the ticket and never built |
+| **Open questions** | What does the source *not* say? | Discovering the unasked question at QA, one at a time |
+| **Permutation matrix** | Which states must this survive? | A happy path that is correct and a permutation that is not |
+
+The ledger is generated **from** the trace table, never beside it. Each ledger
+row carries its requirement id in the existing `ref` column. The checker is
+`scripts/check_requirements.py`, and it is the loop's real exit predicate:
+
+```
+python3 <skill-dir>/scripts/check_requirements.py loops/<loop-name>/REQUIREMENTS.md
+```
+
+It exits 1 while any cell is blank, any proof lacks a `spec:` / `browser:` /
+`waived:` prefix, or any proof names a file that is not on disk. That last check
+is what makes "verified in a browser" mean an artifact rather than a sentence.
+
+**When to skip it:** a loop that processes a queue, polls a condition, or does
+any work with no external specification has nothing to trace. Say so explicitly
+in the blueprint rather than scaffolding three empty tables.
 
 ---
 
@@ -98,6 +137,18 @@ answer, then move to the next.
 > check with a program — a file exists, an HTTP endpoint returns 200, a count
 > reaches a target, a queue is empty. A vibe ("it looks good") won't work;
 > a checkable predicate will.
+>
+> **Then, always: where does the requirement live?** A Jira ticket, a spec doc,
+> a design file, a bug report — the artifact whose words decide whether the work
+> is right. Capture the identifier and read it now, not later.
+>
+> If there is one, the exit predicate is *not* "the ledger says done" — it is
+> `check_requirements.py` passing against a trace built from that source (see
+> **The second rule**). Push back if the user offers a ledger-shaped predicate:
+> that is the single most common way a loop finishes green and wrong.
+>
+> If there genuinely is no external specification, record "no requirement
+> source — queue/condition loop" in the blueprint and use the plain predicate.
 
 **Q2 — Trigger** (maps to TRIGGER.md)
 > How does the loop start each run? Options: a cron schedule, a filesystem
@@ -122,6 +173,17 @@ answer, then move to the next.
 > be a program with a binary verdict, not a model's opinion. The verifier runs
 > after every action and gates the next iteration. It is a separate file from
 > the loop skill — template at `scripts/verifier_template.sh`.
+>
+> Passing tests and clean lint are a floor, not the answer. Ask what proves the
+> *requirement*, at the layer a user meets it: a unit spec asserts the shape its
+> author assumed, and agrees with itself when the layer above disagrees. For
+> anything user-visible or money-touching, name the evidence — a feature spec, a
+> screenshot, a request against a running stack — and it goes in the `proven by`
+> cell as a path the checker can stat.
+>
+> Two things the verifier must never do, both observed in the field: grep the
+> loop's own state file for `done`, and have its FAIL hand-waved by the driver.
+> If a FAIL is wrong, the fix is to correct the verifier in that iteration.
 
 **Q6 — State**
 > What does the loop need to remember between runs? Examples: which items have
@@ -131,9 +193,16 @@ answer, then move to the next.
 
 **Q7 — Human gates**
 > At which points must a human approve before the loop continues? At minimum:
-> before the first real run, and when the verifier signals an anomaly. Add
-> any domain-specific gates (e.g., before touching production data, before
-> sending external messages, when cost exceeds a threshold).
+> before the first real run, when the verifier signals an anomaly, and — when
+> there is a requirement source — **the ambiguity gate**: the trace table and
+> the open-questions list go to the requirement owner as one batch before the
+> first commit, not as they are discovered.
+>
+> That gate is worth its latency. Questions found at QA arrive one per round,
+> each costing a round trip and a rebase; the same questions asked at kickoff
+> arrive as one reply. Add any domain-specific gates too (before touching
+> production data, before sending external messages, when cost exceeds a
+> threshold).
 
 ### Two additional captures
 
@@ -206,7 +275,7 @@ python scripts/loop_progress.py blueprint \
 Present the rendered box to the user. Do not write files until the user
 approves. If anything is wrong, correct it in the elicit answers and re-render.
 
-### Step 4b — Scaffold the 7 building blocks
+### Step 4b — Scaffold the 8 building blocks
 
 Split by durability:
 
@@ -228,13 +297,21 @@ These files do not change at runtime. Install them to
 
 **Changing (written to the working tree, read+written each run):**
 
-5. `loops/<loop-name>/STATE.md` (or the backend selected below) — the state
+5. `loops/<loop-name>/REQUIREMENTS.md` — the requirement trace, open questions
+   and permutation matrix. Generated from `templates/REQUIREMENTS.md.tmpl`.
+   **Write this before the ledger and fill the trace table from the source
+   itself, not from your implementation plan** — the plan is a lossy
+   compression of the requirement, and a loop that verifies against the plan
+   can only ever confirm the compression. Skip this block only for a loop with
+   no external specification (say so in the blueprint).
+6. `loops/<loop-name>/STATE.md` (or the backend selected below) — the state
    file. Generated from `templates/STATE.md.tmpl`; initialize with the current
-   timestamp and empty counters.
-6. If durable knowledge was captured: a second installed skill at
+   timestamp and empty counters. Its rows are derived from block 5's trace
+   table, each carrying its requirement id in the `ref` column.
+7. If durable knowledge was captured: a second installed skill at
    `<host-skills-dir>/<loop-name>-knowledge/SKILL.md` containing that
    read-only reference material.
-7. **Dashboard** — an auto-updating status board. The dashboard is a **shipped,
+8. **Dashboard** — an auto-updating status board. The dashboard is a **shipped,
    fixed asset — you install it, you do not build it.** Run, once, the installer:
 
    ```
@@ -319,7 +396,9 @@ budget can run forever or exhaust resources silently. Both are required.
 
 - **Gates** must appear in `HUMAN-GATES.md` before the loop is considered
   scaffolded. At minimum: one gate before the first live run, one gate if the
-  verifier signals an anomaly.
+  verifier signals an anomaly, and — whenever a requirement source exists — the
+  ambiguity gate, which blocks the first commit until the trace table and the
+  open-questions list have gone to the requirement owner as a single batch.
 - **Budget** must appear in `HUMAN-GATES.md` as a hard stop: maximum
   iterations, maximum cost in dollars, maximum elapsed wall time, or all three.
 
@@ -353,6 +432,18 @@ item is missing, fix it before declaring done.
 
 - [ ] All 7 questions answered (Goal · Trigger · Discovery · Action ·
       Verification · State · Human gates) and recorded in the blueprint
+- [ ] Requirement source named in the blueprint, or "no requirement source"
+      recorded deliberately
+- [ ] `loops/<name>/REQUIREMENTS.md` exists with all three tables, its trace
+      rows quoted verbatim from the source (**not** from the implementation
+      plan), and `check_requirements.py` runs against it
+- [ ] The exit predicate is `check_requirements.py`, not a grep of the loop's
+      own ledger — a loop that verifies itself against its own state file is
+      not verified
+- [ ] Ledger rows carry their requirement id in the `ref` column, and every
+      trace row maps to at least one ledger row
+- [ ] Ambiguity gate present in `HUMAN-GATES.md` when a requirement source
+      exists, blocking the first commit
 - [ ] Separate verifier file exists and has a binary exit code
 - [ ] External state file exists at the correct path for the chosen backend
 - [ ] `HUMAN-GATES.md` is present and includes at minimum one pre-run gate and

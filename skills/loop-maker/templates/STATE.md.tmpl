@@ -32,7 +32,10 @@ dashboard (a code-shipping loop typically fills them; a plain loop omits them):
 |-------|------|--------|-----|------|--------|----|-------|
 | caterspot_admin_app | Tax-group selector on 4 forms | done | ADMIN-1 · CAT-9901 | NEW | fm/cat-9621 → fm/cat-9901 | #1823 | |
 
-  - `ref`    — two-line ticket cell, split on `·` or `/` (part above, id below)
+  - `ref`    — two-line ticket cell, split on `·` or `/` (part above, id below).
+               When the loop has a REQUIREMENTS.md, this carries the requirement
+               id it satisfies: `R-14 · CAT-10040`. Do not add a `req` column —
+               the dashboard reads a fixed schema.
   - `type`   — NEW / REUSE tag (NEW is accent-colored)
   - `branch` — base → head, shown under the title; the stack's base branch is
                derived from the first row's left side
@@ -57,6 +60,9 @@ exit code : —
 
 ## Notes
 
+- Rows here are derived from `REQUIREMENTS.md`'s trace table, not from the
+  implementation plan. This ledger says what the loop did; it is never the
+  thing that decides whether the loop is done.
 - Keep rows here as the loop runs; do not delete completed rows (they form an
   audit trail).
 - If a row reaches `failed`, the loop must halt and a human gate must be

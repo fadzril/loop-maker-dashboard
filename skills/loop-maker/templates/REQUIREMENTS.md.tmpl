@@ -1,0 +1,78 @@
+<!-- changing state — read & written every run, alongside STATE.md. -->
+
+# {{LOOP_NAME}} — Requirement Trace
+
+> The loop's ledger records what the loop *did*. This file records what the
+> **source** asked for, and is the only artifact allowed to answer "are we
+> done". Source of record: {{REQ_SOURCE}}
+>
+> Build this file BEFORE the ledger, and generate the ledger from it. A
+> requirement that never lands in the trace table is invisible for the rest of
+> the project — there is no later step that re-reads the ticket.
+
+Gate: `python3 <skill-dir>/scripts/check_requirements.py {{REQ_PATH}}`
+
+---
+
+## Requirement trace
+
+One row per requirement, quoted **verbatim** from the source. Do not paraphrase
+and do not merge two sentences into one row — paraphrase is where requirements
+go missing. If the source says a thing three times, it is still one row, but it
+is not zero rows.
+
+`proven by` must start with `spec:`, `browser:` or `waived:`. Any value naming
+a path must point at a file that exists.
+
+| id | requirement (verbatim from source) | satisfied in | proven by |
+|----|------------------------------------|--------------|-----------|
+| R-1 | "Do not charge user credit card for cancelled order's order_variation(s)" | app/services/capture.rb:88 | spec: spec/services/capture_spec.rb |
+| R-2 | "Add budget badge to the top of the modal" | src/Modal/Step2.jsx:41 | browser: loops/{{LOOP_SLUG}}/evidence/step2-badge.png |
+| R-3 | "Display the co-payment delta on step 5" | | |
+
+---
+
+## Open questions
+
+Every requirement row gets one pass asking what it does **not** say: which
+state, which permutation, which pre-existing user choice. Send the whole list
+to the requirement owner in one batch before the first commit.
+
+An unanswered question does not block the loop — it must instead be recorded as
+`assumed:`, so the assumption ships visibly in the PR rather than surfacing on
+staging.
+
+| id | question | asked | resolution |
+|----|----------|-------|------------|
+| Q-1 | Does the modal appear when the user already chose "no replacement"? | 2026-08-13 | answered: no — suppress it entirely |
+| Q-2 | What does the badge show at zero markup? | 2026-08-13 | assumed: hide the badge; flagged in PR body |
+
+---
+
+## Permutation matrix
+
+The axes this feature has to survive, enumerated once, up front. A blank cell is
+a defect waiting for QA to find it — every cell is covered or explicitly waived
+with a reason.
+
+Keep it to the axes that actually interact. Three axes with four values each is
+a real matrix; ten axes is a wish list nobody fills in.
+
+| id | cell | covered by |
+|----|------|------------|
+| M-1 | scenario 3 × copay × markup > 0 | spec: spec/services/replacement_spec.rb |
+| M-2 | scenario 3 × copay × zero markup | spec: spec/services/replacement_spec.rb |
+| M-3 | scenario 4 × subsidy × capture time passed | waived: capture time cannot be set in the past |
+
+---
+
+## Notes
+
+- Ledger rows in `STATE.md` carry their requirement id in the existing `ref`
+  column (`R-14 · CAT-10040`) — do not add a column, the dashboard renderer
+  reads a fixed schema.
+- Evidence files live in `loops/{{LOOP_SLUG}}/evidence/`. A screenshot or GIF
+  committed there is what turns "I checked it in a browser" into something the
+  gate can verify.
+- Rows are append-only. A requirement that turns out not to apply is `waived:`
+  with a reason, never deleted.
